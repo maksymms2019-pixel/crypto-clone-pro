@@ -1,0 +1,1 @@
+CREATE POLICY "news_cache readable by all" ON public.news_cache FOR SELECT TO anon, authenticated USING (true);
