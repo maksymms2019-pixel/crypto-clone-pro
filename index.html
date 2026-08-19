@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#06141C" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>CryptoTime — крипто-додаток</title>
+    <meta name="description" content="CryptoTime — глибокі метрики, портфоліо з P&L, AI-агрегатор новин і алерти в Telegram. Працює як додаток на головному екрані." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="CryptoTime" />
+    <meta property="og:description" content="Крипто-дашборд як Telegram Mini App та PWA." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icon-512.png" />
+
+    <!-- Favicon (uses our brand logo) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- PWA manifest (installable: "Add to Home Screen" → standalone app) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS standalone PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CryptoTime" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+
+    <!-- Telegram Mini-App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
