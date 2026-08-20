@@ -23,6 +23,8 @@ export function CoinReward() {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState<Pos>({ top: 40, left: 40 });
   const [claiming, setClaiming] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [pulse, setPulse] = useState(false);
 
   const balance = useQuery({
     queryKey: ["points", user?.id],
