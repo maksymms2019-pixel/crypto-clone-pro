@@ -144,9 +144,52 @@ type GeminiPart =
   | { functionResponse: { name: string; response: { content: unknown } } };
 type GeminiContent = { role: "user" | "model" | "function"; parts: GeminiPart[] };
 
+// ---- Gemini key pool ------------------------------------------------------
+// Free-tier keys hit per-minute / per-day quotas fast (429). We rotate across
+// every configured key and put a key that just got rate-limited on a short
+// cooldown so the next request doesn't waste attempts on it.
+const KEY_NAMES = [
+  "GEMINI_API_KEY",
+  "GEMINI_API_KEY_2",
+  "GEMINI_API_KEY_3",
+  "GEMINI_API_KEY_4",
+  "GEMINI_API_KEY_5",
+];
+
+function apiKeys(): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const n of KEY_NAMES) {
+    const v = Deno.env.get(n)?.trim();
+    if (v && !seen.has(v)) { seen.add(v); out.push(v); }
+  }
+  return out;
+}
+
+// key -> epoch ms until which it should be skipped (per isolate, best effort)
+const cooldown = new Map<string, number>();
+const COOLDOWN_MS = 60_000;
+
+class RateLimited extends Error {
+  retryAfter: number;
+  constructor(retryAfter: number, detail: string) {
+    super(`Забагато запитів до AI. Спробуй за ${retryAfter} с. (${detail})`);
+    this.retryAfter = retryAfter;
+  }
+}
+
+/** Pull Google's suggested delay (seconds) out of a 429 body / headers. */
+function parseRetryAfter(txt: string, headers: Headers): number {
+  const h = Number(headers.get("retry-after"));
+  if (Number.isFinite(h) && h > 0) return Math.ceil(h);
+  const m = txt.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+  if (m) return Math.max(1, Math.ceil(Number(m[1])));
+  return 30;
+}
+
 async function callGemini(contents: GeminiContent[]): Promise<GeminiContent> {
-  const key = Deno.env.get("GEMINI_API_KEY");
-  if (!key) throw new Error("GEMINI_API_KEY не налаштовано");
+  const keys = apiKeys();
+  if (!keys.length) throw new Error("GEMINI_API_KEY не налаштовано");
 
   const body = JSON.stringify({
     systemInstruction: { role: "user", parts: [{ text: SYSTEM }] },
@@ -155,35 +198,55 @@ async function callGemini(contents: GeminiContent[]): Promise<GeminiContent> {
     generationConfig: { temperature: 0.7, maxOutputTokens: 1536 },
   });
 
+  const now = Date.now();
+  // Prefer keys that are not cooling down, but keep the cold ones as a last resort.
+  const fresh = keys.filter((k) => (cooldown.get(k) ?? 0) <= now);
+  const ordered = fresh.length ? [...fresh, ...keys.filter((k) => !fresh.includes(k))] : keys;
+
   let lastErr = "";
+  let rateLimitedDelay = 0;
+
   for (const model of MODELS) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const r = await fetch(`${geminiUrl(model)}?key=${encodeURIComponent(key)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
-        if (r.ok) {
-          const j = await r.json();
-          const cand = j.candidates?.[0];
-          if (!cand?.content) throw new Error("empty");
-          return cand.content as GeminiContent;
+    for (const key of ordered) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const r = await fetch(`${geminiUrl(model)}?key=${encodeURIComponent(key)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+          if (r.ok) {
+            const j = await r.json();
+            const cand = j.candidates?.[0];
+            if (!cand?.content) throw new Error("empty");
+            cooldown.delete(key);
+            return cand.content as GeminiContent;
+          }
+          const txt = await r.text().catch(() => "");
+          lastErr = `${model} ${r.status}`;
+          console.warn("[ai-assistant] gemini", model, r.status, txt.slice(0, 300));
+
+          if (r.status === 429 || r.status === 403) {
+            const delay = parseRetryAfter(txt, r.headers);
+            rateLimitedDelay = rateLimitedDelay ? Math.min(rateLimitedDelay, delay) : delay;
+            cooldown.set(key, Date.now() + Math.max(COOLDOWN_MS, delay * 1000));
+            break; // this key is exhausted — try the next key
+          }
+          if (r.status < 500) break; // client error: next key/model won't help much
+          // 5xx — short backoff, then one more try on the same key
+          await sleep(400 * Math.pow(3, attempt) + Math.random() * 200);
+        } catch (e) {
+          lastErr = String((e as Error)?.message ?? e);
+          await sleep(400 + Math.random() * 300);
         }
-        const txt = await r.text().catch(() => "");
-        lastErr = `${model} ${r.status}`;
-        console.warn("[ai-assistant] gemini", model, r.status, txt.slice(0, 300));
-        // Retry only on 429/5xx; otherwise jump to next model.
-        if (r.status !== 429 && r.status < 500) break;
-        await sleep(400 * Math.pow(3, attempt) + Math.random() * 200);
-      } catch (e) {
-        lastErr = String((e as Error)?.message ?? e);
-        await sleep(500);
       }
     }
   }
+
+  if (rateLimitedDelay) throw new RateLimited(rateLimitedDelay, lastErr);
   throw new Error(`Gemini тимчасово недоступний. Спробуй за хвилину. (${lastErr})`);
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
