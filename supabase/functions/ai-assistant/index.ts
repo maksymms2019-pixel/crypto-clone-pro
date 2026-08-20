@@ -312,7 +312,11 @@ Deno.serve(async (req) => {
           controller.close();
         } catch (e) {
           console.error("[ai-assistant] stream error", e);
-          emit({ type: "error", message: String((e as Error)?.message ?? e) });
+          emit({
+            type: "error",
+            message: String((e as Error)?.message ?? e),
+            ...(e instanceof RateLimited ? { retryAfter: e.retryAfter } : {}),
+          });
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         }
