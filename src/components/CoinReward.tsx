@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { Coins } from "lucide-react";
 import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
+import { levelFor } from "@/lib/coinLevels";
+import { CoinWalletSheet } from "./CoinWalletSheet";
 
 type Pos = { top: number; left: number };
 
@@ -21,6 +23,8 @@ export function CoinReward() {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState<Pos>({ top: 40, left: 40 });
   const [claiming, setClaiming] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [pulse, setPulse] = useState(false);
 
   const balance = useQuery({
     queryKey: ["points", user?.id],
@@ -107,15 +111,29 @@ export function CoinReward() {
 
   if (!user) return null;
 
+  const bal = balance.data ?? 0;
+  const level = levelFor(bal);
+
   return (
     <>
-      {/* Balance pill */}
+      {/* Balance pill — tap to open the coin wallet */}
       <div className="pointer-events-none fixed right-3 z-50" style={{ top: "calc(var(--sa-top) + 8px)" }}>
-        <div className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-[var(--gold)]/40 bg-[var(--bg-elev)]/90 px-2.5 py-1 text-xs font-semibold tabular-nums text-[var(--gold)] backdrop-blur">
+        <button
+          onClick={() => { haptic("light"); setWalletOpen(true); }}
+          aria-label="Мої монетки"
+          className={`pointer-events-auto inline-flex items-center gap-1 rounded-full bg-[var(--bg-elev)]/90 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur transition-transform active:scale-95 ${pulse ? "animate-coin-pop" : ""}`}
+          style={{
+            color: level.color,
+            border: `1px solid ${level.color}66`,
+            boxShadow: `0 0 14px ${level.glow}`,
+          }}
+        >
           <Coins size={13} />
-          {balance.data ?? 0}
-        </div>
+          {bal}
+        </button>
       </div>
+
+      <CoinWalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} balance={bal} />
 
       {/* Floating collectible coin */}
       {visible && (
@@ -133,3 +151,4 @@ export function CoinReward() {
     </>
   );
 }
+

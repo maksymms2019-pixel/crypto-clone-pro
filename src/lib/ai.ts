@@ -8,7 +8,7 @@ export type StreamEvent =
   | { type: "tool_use"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean }
   | { type: "done" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; retryAfter?: number };
 
 export async function streamAssistant(
   messages: ChatMsg[],
