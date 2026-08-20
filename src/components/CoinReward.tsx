@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { Coins } from "lucide-react";
 import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
+import { levelFor } from "@/lib/coinLevels";
+import { CoinWalletSheet } from "./CoinWalletSheet";
 
 type Pos = { top: number; left: number };
 
