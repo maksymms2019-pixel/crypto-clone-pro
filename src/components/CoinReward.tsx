@@ -119,7 +119,7 @@ export function CoinReward() {
       {/* Balance pill — tap to open the coin wallet */}
       <div className="pointer-events-none fixed right-3 z-50" style={{ top: "calc(var(--sa-top) + 8px)" }}>
         <button
-          onClick={() => { haptic("light"); setWalletOpen(true); }}
+          onClick={() => { haptic("tap"); setWalletOpen(true); }}
           aria-label="Мої монетки"
           className={`pointer-events-auto inline-flex items-center gap-1 rounded-full bg-[var(--bg-elev)]/90 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur transition-transform active:scale-95 ${pulse ? "animate-coin-pop" : ""}`}
           style={{
