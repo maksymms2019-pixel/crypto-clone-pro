@@ -21,6 +21,25 @@ import { Toaster } from "sonner";
 import { ensureTelegramSession } from "@/lib/auth";
 import { isInTelegram } from "@/lib/telegram";
 
+// === ДОДАНО: Константа для зв'язку з сервером ===
+const API_URL = "http://95.182.82.131:8000";
+
+// === ДОДАНО: Функція для синхронізації монет з ботом ===
+export async function syncCoinsToBot(totalCoins: number) {
+  if (window.Telegram?.WebApp) {
+    const initData = window.Telegram.WebApp.initData;
+    try {
+      await fetch(`${API_URL}/api/update_coins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData, coins: totalCoins })
+      });
+    } catch (error) {
+      console.error("Помилка синхронізації монет:", error);
+    }
+  }
+}
+
 export default function App() {
   // Silent Telegram sign-in on app start.
   useEffect(() => {
