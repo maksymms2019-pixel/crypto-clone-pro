@@ -1,3 +1,4 @@
+import { useEffect } from "react"; // <<< ДОДАНИЙ ВІДСУТНІЙ ІМПОРТ
 import { useQuery } from "@tanstack/react-query";
 import { fetchGlobal, fetchFearGreed, fetchMarkets } from "@/lib/markets";
 import { MetricCard } from "@/components/MetricCard";
@@ -16,7 +17,7 @@ import { GainersLosers } from "@/components/GainersLosers";
 import { TrendingRail } from "@/components/TrendingRail";
 import { MarketMetrics } from "@/components/MarketMetrics";
 import { fetchMarketMetrics } from "@/lib/metrics";
-import { syncCoinsToBot } from "@/App"; // <<< ДОДАНО ІМПОРТ
+import { syncCoinsToBot } from "@/App";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -33,14 +34,12 @@ export default function Dashboard() {
     select: (rows) => rows?.[0],
   });
 
-  // <<< ДОДАНО: Синхронізація монет з ботом
-  // Якщо монети зберігаються в іншому місці (наприклад, окремий state), замініть `user?.coins` на цю змінну
+  // Синхронізація монет з ботом
   useEffect(() => {
     if (user?.coins != null) {
       syncCoinsToBot(user.coins);
     }
   }, [user?.coins]);
-  // <<< КІНЕЦЬ ДОДАНОГО КОДУ
 
   const totalCap = global.data?.total_market_cap_usd;
   const capChange = global.data?.market_cap_change_percentage_24h_usd;
