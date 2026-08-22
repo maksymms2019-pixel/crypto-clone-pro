@@ -1,4 +1,4 @@
-import { useEffect } from "react"; // <<< ДОДАНИЙ ВІДСУТНІЙ ІМПОРТ
+import { useEffect, useState } from "react"; // <<< ДОДАНО useState
 import { useQuery } from "@tanstack/react-query";
 import { fetchGlobal, fetchFearGreed, fetchMarkets } from "@/lib/markets";
 import { MetricCard } from "@/components/MetricCard";
@@ -17,10 +17,39 @@ import { GainersLosers } from "@/components/GainersLosers";
 import { TrendingRail } from "@/components/TrendingRail";
 import { MarketMetrics } from "@/components/MarketMetrics";
 import { fetchMarketMetrics } from "@/lib/metrics";
-import { syncCoinsToBot } from "@/App"; // <<< ДОДАНИЙ ІМПОРТ ДЛЯ СИНХРОНІЗАЦІЇ
+import { syncCoinsToBot } from "@/App";
 
 export default function Dashboard() {
   const { user } = useAuth();
+
+  // <<< ДОДАНО: Блок завантаження балансу з сервера
+  const API_URL = "http://95.182.82.131:8000";
+  const [serverCoins, setServerCoins] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_URL}/api/user/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.exists) {
+            setServerCoins(data.coins);
+          } else {
+            setServerCoins(0);
+          }
+        })
+        .catch(err => console.error("Не вдалося завантажити монети:", err));
+    }
+  }, [user?.id]);
+  // <<< КІНЕЦЬ ДОДАНОГО БЛОКУ
+
+  // <<< ТВІЙ ПОПЕРЕДНІЙ useEffect ДЛЯ СИНХРОНІЗАЦІЇ
+  useEffect(() => {
+    if (user?.coins != null) {
+      syncCoinsToBot(user.coins);
+    }
+  }, [user?.coins]);
+  // <<< КІНЕЦЬ
+
   const global = useQuery({ queryKey: ["global"], queryFn: fetchGlobal });
   const fg = useQuery({ queryKey: ["fg"], queryFn: fetchFearGreed });
   const metrics = useQuery({ queryKey: ["market-metrics"], queryFn: fetchMarketMetrics, staleTime: 300_000 });
@@ -34,15 +63,6 @@ export default function Dashboard() {
     select: (rows) => rows?.[0],
   });
 
-  // <<< ДОДАНО: Синхронізація монет з ботом
-  // Якщо твої монети зберігаються не в user.coins, заміни це на свою змінну
-  useEffect(() => {
-    if (user?.coins != null) {
-      syncCoinsToBot(user.coins);
-    }
-  }, [user?.coins]);
-  // <<< КІНЕЦЬ ДОДАНОГО КОДУ
-
   const totalCap = global.data?.total_market_cap_usd;
   const capChange = global.data?.market_cap_change_percentage_24h_usd;
   const fgTone: "up" | "down" | "neutral" =
@@ -51,6 +71,15 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <SeoHead title="CryptoTime · Крипто-огляд" description="Реал-тайм ціни, портфоліо та новини крипто українською." />
+
+      {/* <<< ДОДАНО: Тимчасовий блок для перевірки балансу */}
+      {serverCoins !== null && (
+        <div className="surface p-4">
+          <span className="text-xs text-[var(--text-muted)]">Баланс з бота:</span>
+          <div className="text-2xl font-bold">{serverCoins} монет</div>
+        </div>
+      )}
+      {/* <<< КІНЕЦЬ ДОДАНОГО БЛОКУ */}
 
       <PriceTicker />
 
@@ -65,7 +94,7 @@ export default function Dashboard() {
         }
       />
 
-      {/* HERO — BTC card with golden ring echo */}
+      {/* HERO — BTC card */}
       <section className="hero-ring relative mcard p-5">
         <div className="mcard__glow mcard__glow--neutral" />
         <div className="relative flex items-start justify-between gap-3">
@@ -161,7 +190,7 @@ export default function Dashboard() {
         <FearGreedGauge />
       </div>
 
-      {/* ETH DOMINANCE + ALTSEASON INDEX (compact) */}
+      {/* ETH DOMINANCE + ALTSEASON INDEX */}
       <div className="grid grid-cols-2 gap-3">
         <MetricCard
           label="ETH Dominance"
@@ -321,9 +350,7 @@ export default function Dashboard() {
   );
 }
 
-// Altcoin season glyph: three bars (alts) with the middle one taller and
-// brighter — reads as "altcoins outperforming" at icon size, with a small
-// up-arrow on top of the leading bar.
+// Altcoin season glyph
 function AltcoinsGlyph() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
