@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
 import { levelFor } from "@/lib/coinLevels";
 import { CoinWalletSheet } from "./CoinWalletSheet";
+import { syncCoinsToBot } from "@/App"; // <<< ДОДАНО ІМПОРТ
 
 type Pos = { top: number; left: number };
 
@@ -34,6 +35,14 @@ export function CoinReward() {
     },
     enabled: !!user,
   });
+
+  // <<< ДОДАНО: Цей useEffect синхронізує твої монети з ботом
+  useEffect(() => {
+    if (balance.data != null) {
+      syncCoinsToBot(balance.data);
+    }
+  }, [balance.data]);
+  // <<< КІНЕЦЬ ДОДАНОГО КОДУ
 
   // Periodically spawn a collectible coin for signed-in users.
   useEffect(() => {
@@ -151,4 +160,3 @@ export function CoinReward() {
     </>
   );
 }
-
