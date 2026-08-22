@@ -7,14 +7,14 @@ import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
 import { levelFor } from "@/lib/coinLevels";
 import { CoinWalletSheet } from "./CoinWalletSheet";
-import { syncCoinsToBot } from "@/App"; // <<< ДОДАНО ІМПОРТ
+import { syncCoinsToBot } from "@/App"; // Залишаємо синхронізацію
 
 type Pos = { top: number; left: number };
 
 function randomPos(): Pos {
   return {
-    top: 20 + Math.random() * 60, // % of viewport height (avoid header/tabs)
-    left: 8 + Math.random() * 78, // % of viewport width
+    top: 20 + Math.random() * 60,
+    left: 8 + Math.random() * 78,
   };
 }
 
@@ -27,6 +27,20 @@ export function CoinReward() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
 
+  // ДОДАНО: Баланс з сервера бота (SQLite)
+  const API_URL = "http://95.182.82.131:8000";
+  const [serverBalance, setServerBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`${API_URL}/api/user/${user.id}`)
+        .then(res => res.json())
+        .then(data => setServerBalance(data.exists ? data.coins : 0))
+        .catch(err => console.error("Не вдалося завантажити баланс:", err));
+    }
+  }, [user?.id]);
+
+  // Залишаємо Supabase запит для інших фіч (ліги, рейтинги)
   const balance = useQuery({
     queryKey: ["points", user?.id],
     queryFn: async () => {
@@ -36,13 +50,12 @@ export function CoinReward() {
     enabled: !!user,
   });
 
-  // <<< ДОДАНО: Цей useEffect синхронізує твої монети з ботом
+  // Синхронізуємо бота, коли локальний баланс змінюється (з гри)
   useEffect(() => {
     if (balance.data != null) {
       syncCoinsToBot(balance.data);
     }
   }, [balance.data]);
-  // <<< КІНЕЦЬ ДОДАНОГО КОДУ
 
   // Periodically spawn a collectible coin for signed-in users.
   useEffect(() => {
@@ -51,12 +64,10 @@ export function CoinReward() {
     let hideTimer: ReturnType<typeof setTimeout>;
 
     const schedule = () => {
-      // appears every 25-70s
       const delay = 25_000 + Math.random() * 45_000;
       spawnTimer = setTimeout(() => {
         setPos(randomPos());
         setVisible(true);
-        // disappears after 9s if not tapped
         hideTimer = setTimeout(() => {
           setVisible(false);
           schedule();
@@ -105,12 +116,14 @@ export function CoinReward() {
         toast.success("+1 монетка 🪙");
         if (typeof res.balance === "number") {
           qc.setQueryData(["points", user?.id], res.balance);
+          // ДОДАНО: Оновлюємо і серверний баланс
+          setServerBalance(res.balance);
+          syncCoinsToBot(res.balance);
         } else {
           qc.invalidateQueries({ queryKey: ["points", user?.id] });
         }
       }
     } catch (e) {
-      // Never let this crash the app — just log + soft toast.
       console.warn("[coin] award failed", e);
       toast.message("Спробуй ще раз за мить");
     } finally {
@@ -120,12 +133,12 @@ export function CoinReward() {
 
   if (!user) return null;
 
-  const bal = balance.data ?? 0;
+  // Відображаємо баланс бота, якщо він завантажений, інакше локальний
+  const bal = serverBalance ?? balance.data ?? 0;
   const level = levelFor(bal);
 
   return (
     <>
-      {/* Balance pill — tap to open the coin wallet */}
       <div className="pointer-events-none fixed right-3 z-50" style={{ top: "calc(var(--sa-top) + 8px)" }}>
         <button
           onClick={() => { haptic("tap"); setWalletOpen(true); }}
@@ -144,7 +157,6 @@ export function CoinReward() {
 
       <CoinWalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} balance={bal} />
 
-      {/* Floating collectible coin */}
       {visible && (
         <button
           onClick={claim}
