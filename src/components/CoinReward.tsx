@@ -26,17 +26,13 @@ export function CoinReward() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
 
-  // Отримуємо Telegram ID з WebApp
+  // Отримуємо Telegram ID
   const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
-  // Зберігаємо Telegram ID в Supabase, щоб бот міг знайти цього користувача
+  // Зберігаємо Telegram ID в Supabase при завантаженні
   useEffect(() => {
     if (user && tgUserId) {
-      supabase
-        .from("user_points")
-        .update({ telegram_id: tgUserId })
-        .eq("user_id", user.id)
-        .then(() => {});
+      supabase.from("user_points").update({ telegram_id: tgUserId }).eq("user_id", user.id);
     }
   }, [user, tgUserId]);
 
@@ -49,7 +45,6 @@ export function CoinReward() {
     enabled: !!user,
   });
 
-  // Periodically spawn a collectible coin for signed-in users.
   useEffect(() => {
     if (!user) return;
     let spawnTimer: ReturnType<typeof setTimeout>;
@@ -107,7 +102,7 @@ export function CoinReward() {
         haptic("success");
         toast.success("+1 монетка 🪙");
         
-        // Негайно зберігаємо Telegram ID після збору, щоб бот точно знайшов користувача
+        // Негайно зберігаємо Telegram ID після збору
         if (tgUserId) {
           supabase.from("user_points").update({ telegram_id: tgUserId }).eq("user_id", user!.id);
         }
