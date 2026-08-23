@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { COIN_LEVELS, levelProgress } from "@/lib/coinLevels";
 import { haptic } from "@/lib/telegram";
 import { toast } from "sonner";
-import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket } from "lucide-react";
+import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket, Search } from "lucide-react";
 
 type Tab = "wallet" | "rating" | "raffles";
 
@@ -33,6 +33,16 @@ type SnapshotRow = {
   participants: number;
   balance: number;
   rank: number;
+};
+
+type VerifyResp = {
+  ok: boolean;
+  error?: string;
+  code?: string;
+  display_name?: string;
+  balance?: number;
+  rank?: number;
+  snapshot?: { title: string; taken_at: string; balance: number; rank: number } | null;
 };
 
 // The managed types file is generated from the external DB and can't be edited,
