@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react"; // <<< ДОДАНО useState
 import { useQuery } from "@tanstack/react-query";
 import { fetchGlobal, fetchFearGreed, fetchMarkets } from "@/lib/markets";
 import { MetricCard } from "@/components/MetricCard";
@@ -17,38 +16,9 @@ import { GainersLosers } from "@/components/GainersLosers";
 import { TrendingRail } from "@/components/TrendingRail";
 import { MarketMetrics } from "@/components/MarketMetrics";
 import { fetchMarketMetrics } from "@/lib/metrics";
-import { syncCoinsToBot } from "@/App";
 
 export default function Dashboard() {
   const { user } = useAuth();
-
-  // <<< ДОДАНО: Блок завантаження балансу з сервера
-  const API_URL = "http://95.182.82.131:8000";
-  const [serverCoins, setServerCoins] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetch(`${API_URL}/api/user/${user.id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.exists) {
-            setServerCoins(data.coins);
-          } else {
-            setServerCoins(0);
-          }
-        })
-        .catch(err => console.error("Не вдалося завантажити монети:", err));
-    }
-  }, [user?.id]);
-  // <<< КІНЕЦЬ ДОДАНОГО БЛОКУ
-
-  // <<< ТВІЙ ПОПЕРЕДНІЙ useEffect ДЛЯ СИНХРОНІЗАЦІЇ
-  useEffect(() => {
-    if (user?.coins != null) {
-      syncCoinsToBot(user.coins);
-    }
-  }, [user?.coins]);
-  // <<< КІНЕЦЬ
 
   const global = useQuery({ queryKey: ["global"], queryFn: fetchGlobal });
   const fg = useQuery({ queryKey: ["fg"], queryFn: fetchFearGreed });
@@ -71,15 +41,6 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <SeoHead title="CryptoTime · Крипто-огляд" description="Реал-тайм ціни, портфоліо та новини крипто українською." />
-
-      {/* <<< ДОДАНО: Тимчасовий блок для перевірки балансу */}
-      {serverCoins !== null && (
-        <div className="surface p-4">
-          <span className="text-xs text-[var(--text-muted)]">Баланс з бота:</span>
-          <div className="text-2xl font-bold">{serverCoins} монет</div>
-        </div>
-      )}
-      {/* <<< КІНЕЦЬ ДОДАНОГО БЛОКУ */}
 
       <PriceTicker />
 
