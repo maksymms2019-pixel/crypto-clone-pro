@@ -187,7 +187,7 @@ export function CoinReward() {
           );
         }
       } else {
-        haptic(coin.id === "common" ? "success" : "success");
+        haptic("success");
         if (coin.id === "diamond") toast.success(`ДІАМАНТОВА! +${coin.delta} монеток 💎`);
         else if (coin.id === "silver") toast.success(`Срібна монета! +${coin.delta} ✨`);
         else toast.success(`+${coin.delta} монеток 🪙`);
