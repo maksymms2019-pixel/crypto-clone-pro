@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
 import { levelFor } from "@/lib/coinLevels";
 import { CoinWalletSheet } from "./CoinWalletSheet";
-import { syncCoinsToBot } from "@/App"; // Залишаємо синхронізацію
 
 type Pos = { top: number; left: number };
 
@@ -27,20 +26,20 @@ export function CoinReward() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
 
-  // ДОДАНО: Баланс з сервера бота (SQLite)
-  const API_URL = "http://95.182.82.131:8000";
-  const [serverBalance, setServerBalance] = useState<number | null>(null);
+  // Отримуємо Telegram ID з WebApp
+  const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
+  // Зберігаємо Telegram ID в Supabase, щоб бот міг знайти цього користувача
   useEffect(() => {
-    if (user?.id) {
-      fetch(`${API_URL}/api/user/${user.id}`)
-        .then(res => res.json())
-        .then(data => setServerBalance(data.exists ? data.coins : 0))
-        .catch(err => console.error("Не вдалося завантажити баланс:", err));
+    if (user && tgUserId) {
+      supabase
+        .from("user_points")
+        .update({ telegram_id: tgUserId })
+        .eq("user_id", user.id)
+        .then(() => {});
     }
-  }, [user?.id]);
+  }, [user, tgUserId]);
 
-  // Залишаємо Supabase запит для інших фіч (ліги, рейтинги)
   const balance = useQuery({
     queryKey: ["points", user?.id],
     queryFn: async () => {
@@ -49,13 +48,6 @@ export function CoinReward() {
     },
     enabled: !!user,
   });
-
-  // Синхронізуємо бота, коли локальний баланс змінюється (з гри)
-  useEffect(() => {
-    if (balance.data != null) {
-      syncCoinsToBot(balance.data);
-    }
-  }, [balance.data]);
 
   // Periodically spawn a collectible coin for signed-in users.
   useEffect(() => {
@@ -114,11 +106,14 @@ export function CoinReward() {
       } else {
         haptic("success");
         toast.success("+1 монетка 🪙");
+        
+        // Негайно зберігаємо Telegram ID після збору, щоб бот точно знайшов користувача
+        if (tgUserId) {
+          supabase.from("user_points").update({ telegram_id: tgUserId }).eq("user_id", user!.id);
+        }
+
         if (typeof res.balance === "number") {
           qc.setQueryData(["points", user?.id], res.balance);
-          // ДОДАНО: Оновлюємо і серверний баланс
-          setServerBalance(res.balance);
-          syncCoinsToBot(res.balance);
         } else {
           qc.invalidateQueries({ queryKey: ["points", user?.id] });
         }
@@ -129,12 +124,11 @@ export function CoinReward() {
     } finally {
       setClaiming(false);
     }
-  }, [claiming, qc, user?.id]);
+  }, [claiming, qc, user?.id, tgUserId, user]);
 
   if (!user) return null;
 
-  // Відображаємо баланс бота, якщо він завантажений, інакше локальний
-  const bal = serverBalance ?? balance.data ?? 0;
+  const bal = balance.data ?? 0;
   const level = levelFor(bal);
 
   return (
