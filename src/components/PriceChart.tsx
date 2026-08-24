@@ -16,7 +16,7 @@ const TV_MAP: Record<string, string> = {
   "internet-computer": "BINANCE:ICPUSDT", cosmos: "BINANCE:ATOMUSDT", "ethereum-classic": "BINANCE:ETCUSDT",
   stellar: "BINANCE:XLMUSDT", filecoin: "BINANCE:FILUSDT", "hedera-hashgraph": "BINANCE:HBARUSDT",
   aptos: "BINANCE:APTUSDT", near: "BINANCE:NEARUSDT", vechain: "BINANCE:VETUSDT",
-  arbitrum: "BINANCE:ARBUSDT", optimism: "BINANCE:OPUSDT", "the-open-network": "BINANCE:TONUSDT",
+  arbitrum: "BINANCE:ARBUSDT", optimism: "BINANCE:OPUSDT", "the-open-network": "OKX:GRAMUSDT",
   injective: "BINANCE:INJUSDT", sui: "BINANCE:SUIUSDT", sei: "BINANCE:SEIUSDT",
   monero: "BINANCE:XMRUSDT", aave: "BINANCE:AAVEUSDT", maker: "BINANCE:MKRUSDT",
   pepe: "BINANCE:PEPEUSDT", "render-token": "BINANCE:RNDRUSDT",

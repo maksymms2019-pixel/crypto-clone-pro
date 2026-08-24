@@ -162,10 +162,14 @@ export default function Settings() {
     );
   }
 
+  // Telegram accounts get a technical pseudo-email (tg_*@cryptotime.local) — never show it.
+  const pseudoEmail = user.email?.endsWith("@cryptotime.local") ?? false;
+  const shownEmail = pseudoEmail ? null : user.email ?? null;
+
   return (
     <div className="space-y-4">
       <SeoHead title={t("settings.title")} />
-      <PageHeader title={t("settings.title")} subtitle={user.email ?? ""} />
+      <PageHeader title={t("settings.title")} subtitle={shownEmail ?? ""} />
 
       {/* PROFILE */}
       <section className="surface p-4">
@@ -210,7 +214,7 @@ export default function Settings() {
               }}
               className="w-full bg-transparent text-base font-medium outline-none"
             />
-            <div className="text-xs text-[var(--text-muted)] truncate">{user.email}</div>
+            {shownEmail && <div className="text-xs text-[var(--text-muted)] truncate">{shownEmail}</div>}
           </div>
           {(savingName || uploadingAvatar) && <Loader2 size={14} className="animate-spin text-[var(--text-muted)]" />}
         </div>

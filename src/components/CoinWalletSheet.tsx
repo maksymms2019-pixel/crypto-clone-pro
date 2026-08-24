@@ -364,7 +364,7 @@ export function CoinWalletSheet({
                 <div className="flex items-start gap-2 rounded-xl border border-[var(--line)] bg-white/[.02] px-3 py-2">
                   <Sparkles size={13} className="mt-0.5 shrink-0 text-[var(--cyan)]" />
                   <p className="text-[11px] leading-snug text-[var(--text-muted)]">
-                    Монетка з'являється на екрані час від часу — тапни по ній, щоб зібрати. Денний ліміт — 60.
+                    Монетка з'являється на екрані час від часу — тапни по ній, щоб зібрати. Трапляються срібні (+30) і діамантові (+100).
                   </p>
                 </div>
                 <div className="flex items-start gap-2 rounded-xl border border-[var(--line)] bg-white/[.02] px-3 py-2">
@@ -495,11 +495,6 @@ export function CoinWalletSheet({
                 </div>
                 {snapshots.isLoading && (
                   <div className="py-4 text-center text-[11px] text-[var(--text-muted)]">Завантажую…</div>
-                )}
-                {snapshots.data?.length === 0 && (
-                  <div className="rounded-xl border border-[var(--line)] bg-white/[.02] px-3 py-3 text-center text-[11px] text-[var(--text-muted)]">
-                    Розіграшів ще не було — твій баланс уже рахується 🎯
-                  </div>
                 )}
                 {snapshots.data?.map((s) => (
                   <div
