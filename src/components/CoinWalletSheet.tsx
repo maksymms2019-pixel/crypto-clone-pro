@@ -5,7 +5,9 @@ import { useAuth } from "@/lib/auth";
 import { COIN_LEVELS, levelProgress } from "@/lib/coinLevels";
 import { haptic } from "@/lib/telegram";
 import { toast } from "sonner";
-import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket, Search } from "lucide-react";
+import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket, Zap, Plus } from "lucide-react";
+import { DailyChest, untilText } from "./DailyChest";
+import { LevelBadge } from "./LevelBadge";
 
 type Tab = "wallet" | "rating" | "raffles";
 
@@ -15,6 +17,19 @@ type CoinStats = {
   opt_in: boolean;
   rank: number | null;
   total: number;
+  streak?: number;
+  boost_until?: string | null;
+  chest_available?: boolean;
+  chest_next_at?: string | null;
+  is_admin?: boolean;
+};
+
+type PromoRow = {
+  code: string;
+  coins: number;
+  created_at: string;
+  redeemed_at: string | null;
+  redeemed_name: string | null;
 };
 
 type LeaderRow = {
@@ -33,16 +48,6 @@ type SnapshotRow = {
   participants: number;
   balance: number;
   rank: number;
-};
-
-type VerifyResp = {
-  ok: boolean;
-  error?: string;
-  code?: string;
-  display_name?: string;
-  balance?: number;
-  rank?: number;
-  snapshot?: { title: string; taken_at: string; balance: number; rank: number } | null;
 };
 
 // The managed types file is generated from the external DB and can't be edited,
@@ -84,6 +89,9 @@ export function CoinWalletSheet({
   const [shown, setShown] = useState(0);
   const [copied, setCopied] = useState(false);
   const [dragY, setDragY] = useState(0);
+  const [chestOpen, setChestOpen] = useState(false);
+  const [promo, setPromo] = useState("");
+  const [newCoins, setNewCoins] = useState("100");
   const drag = useRef<{ startY: number; active: boolean }>({ startY: 0, active: false });
 
   const stats = useQuery({
@@ -130,6 +138,66 @@ export function CoinWalletSheet({
       toast.success(value ? "Ти в рейтингу 🏆" : "Тебе приховано з рейтингу");
     },
     onError: () => toast.message("Не вдалось змінити налаштування"),
+  });
+
+  const isAdmin = stats.data?.is_admin === true;
+
+  const promoList = useQuery({
+    queryKey: ["promo-codes"],
+    queryFn: async () => {
+      const { data, error } = await sb.rpc<PromoRow[]>("list_promo_codes");
+      if (error) throw new Error(error.message);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: open && isAdmin && tab === "raffles",
+    staleTime: 30_000,
+  });
+
+  const redeem = useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await sb.rpc<{ ok: boolean; error?: string; coins?: number }>(
+        "redeem_promo_code",
+        { _code: code },
+      );
+      if (error) throw new Error(error.message);
+      return data ?? { ok: false };
+    },
+    onSuccess: (r) => {
+      if (r.ok) {
+        haptic("success");
+        setPromo("");
+        toast.success(`Промокод активовано: +${r.coins} монеток 🎉`);
+        qc.invalidateQueries({ queryKey: ["coin-stats"] });
+        qc.invalidateQueries({ queryKey: ["coin-leaderboard"] });
+      } else if (r.error === "already_used") {
+        toast.message("Цей код уже забрали 😔");
+      } else if (r.error === "not_found") {
+        toast.message("Такого коду не існує");
+      } else {
+        toast.message("Не вдалось активувати код");
+      }
+    },
+    onError: () => toast.message("Спробуй ще раз за мить"),
+  });
+
+  const createPromo = useMutation({
+    mutationFn: async (coins: number) => {
+      const { data, error } = await sb.rpc<{ ok: boolean; error?: string; code?: string }>(
+        "create_promo_code",
+        { _coins: coins },
+      );
+      if (error) throw new Error(error.message);
+      return data ?? { ok: false };
+    },
+    onSuccess: (r) => {
+      if (r.ok) {
+        toast.success(`Код створено: ${r.code}`);
+        qc.invalidateQueries({ queryKey: ["promo-codes"] });
+      } else {
+        toast.message("Не вдалось створити код");
+      }
+    },
+    onError: () => toast.message("Не вдалось створити код"),
   });
 
   // Count-up animation for the big number.
