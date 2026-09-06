@@ -21,6 +21,8 @@ export type CoinLevel = {
   /** Text color that reads well on top of `gradient`. */
   onGradient: string;
   emoji: string;
+  /** CSS classes with the tier's signature animated aura. */
+  aura: string;
 };
 
 export const COIN_LEVELS: CoinLevel[] = [
