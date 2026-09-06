@@ -307,3 +307,53 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .animate-coin-pop {
   animation: coinPop .4s cubic-bezier(.2,.9,.3,1.4) both;
 }
+
+/* ---------- Coin level auras (pure CSS, GPU-cheap) ---------- */
+.lvl-badge { position: relative; overflow: hidden; isolation: isolate; }
+
+/* Bronze — soft matte copper breathing */
+@keyframes lvlBronze {
+  0%,100% { box-shadow: 0 0 14px rgba(208,138,78,.45); }
+  50%     { box-shadow: 0 0 26px rgba(208,138,78,.8); }
+}
+.lvl-bronze { animation: lvlBronze 3.2s ease-in-out infinite; }
+
+/* Silver / Gold — a light band sweeping across the badge */
+@keyframes lvlSweep {
+  0%   { transform: translateX(-140%) rotate(18deg); }
+  60%,100% { transform: translateX(160%) rotate(18deg); }
+}
+.lvl-sweep::after {
+  content: ""; position: absolute; inset: -30%; z-index: 1;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
+  width: 40%; animation: lvlSweep 2.6s ease-in-out infinite;
+}
+.lvl-gold { animation: lvlBronze 2.6s ease-in-out infinite; }
+
+/* Diamond — twinkling sparks */
+@keyframes lvlSpark {
+  0%,100% { box-shadow: 0 0 18px rgba(127,216,247,.55), 0 0 0 rgba(255,255,255,0); }
+  35%     { box-shadow: 0 0 30px rgba(127,216,247,.95), 6px -6px 8px -4px rgba(255,255,255,.9); }
+  70%     { box-shadow: 0 0 24px rgba(127,216,247,.75), -7px 5px 8px -4px rgba(255,255,255,.85); }
+}
+.lvl-diamond { animation: lvlSpark 2.2s ease-in-out infinite; }
+
+/* Legend — pulsing fiery aura */
+@keyframes lvlFlame {
+  0%,100% { box-shadow: 0 0 18px rgba(255,122,60,.6), 0 0 34px rgba(244,63,94,.35); transform: scale(1); }
+  50%     { box-shadow: 0 0 32px rgba(255,160,60,.95), 0 0 60px rgba(244,63,94,.55); transform: scale(1.04); }
+}
+.lvl-legend { animation: lvlFlame 1.8s ease-in-out infinite; }
+
+/* Daily chest */
+@keyframes chestNudge {
+  0%,88%,100% { transform: rotate(0deg) scale(1); }
+  91% { transform: rotate(-9deg) scale(1.08); }
+  95% { transform: rotate(9deg) scale(1.08); }
+}
+.chest-ready { animation: chestNudge 2.4s ease-in-out infinite; }
+@keyframes slotSpin {
+  0%   { transform: translateY(-16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.slot-in { animation: slotSpin .35s cubic-bezier(.2,.9,.3,1.4) both; }
