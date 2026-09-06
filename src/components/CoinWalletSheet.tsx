@@ -349,6 +349,47 @@ export function CoinWalletSheet({
         >
           {tab === "wallet" && (
             <>
+              {/* Daily chest */}
+              <button
+                onClick={() => { haptic("tap"); if (chestReady) setChestOpen(true); }}
+                disabled={!chestReady}
+                className="mb-3 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-transform active:scale-[.99] disabled:active:scale-100"
+                style={{
+                  borderColor: chestReady ? "rgba(240,192,78,.55)" : "var(--line)",
+                  background: chestReady ? "rgba(240,192,78,.10)" : "rgba(255,255,255,.02)",
+                }}
+              >
+                <span className={`text-2xl ${chestReady ? "chest-ready" : "opacity-60"}`}>🎁</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold">
+                    {chestReady ? "Щоденна скриня готова" : "Скриня вже відкрита"}
+                  </span>
+                  <span className="block text-[11px] text-[var(--text-muted)]">
+                    {chestReady
+                      ? "Монети, буст ×2 або золотий дощ"
+                      : `Наступна — через ${untilText(stats.data?.chest_next_at)}`}
+                    {streak > 0 ? ` · серія ${streak} дн.` : ""}
+                  </span>
+                </span>
+                {chestReady && (
+                  <span
+                    className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                    style={{ background: "linear-gradient(135deg,#FFEBA6,#EBB63B 55%,#C98A12)", color: "#1A0F00" }}
+                  >
+                    Відкрити
+                  </span>
+                )}
+              </button>
+
+              {boosted && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--cyan)]/40 bg-[var(--cyan)]/10 px-3 py-2">
+                  <Zap size={13} className="shrink-0 text-[var(--cyan)]" />
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Активний буст <span className="font-bold text-[var(--cyan)]">×2</span> — ще {untilText(stats.data?.boost_until)}
+                  </p>
+                </div>
+              )}
+
               {/* Badge + balance */}
               <div className="flex flex-col items-center pt-1 text-center">
                 <div className="relative">
@@ -357,10 +398,10 @@ export function CoinWalletSheet({
                     style={{ background: level.glow }}
                   />
                   <span
-                    className={`flex h-20 w-20 items-center justify-center rounded-full text-3xl ${level.id === "legend" ? "animate-pulse" : ""}`}
+                    className={`flex h-20 w-20 items-center justify-center rounded-full text-3xl ${level.aura}`}
                     style={{ background: level.gradient, color: level.onGradient, boxShadow: `0 0 30px ${level.glow}` }}
                   >
-                    <Coins size={34} />
+                    <Coins size={34} className="relative z-[2]" />
                   </span>
                 </div>
                 <div className="mt-3 display text-4xl font-bold tabular-nums" style={{ color: level.color }}>
@@ -413,10 +454,10 @@ export function CoinWalletSheet({
                       }}
                     >
                       <span
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${reached ? l.aura : ""}`}
                         style={{ background: l.gradient, color: l.onGradient }}
                       >
-                        {l.emoji}
+                        <span className="relative z-[2]">{l.emoji}</span>
                       </span>
                       <span className="flex-1 text-xs font-medium">{l.name}</span>
                       <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
@@ -515,6 +556,7 @@ export function CoinWalletSheet({
                         {row.display_name.slice(0, 1).toUpperCase()}
                       </span>
                     )}
+                    <LevelBadge balance={row.balance} />
                     <span className="min-w-0 flex-1 truncate text-xs font-medium">
                       {row.display_name}
                       {row.is_me && <span className="ml-1 text-[10px]" style={{ color: level.color }}>(ти)</span>}
