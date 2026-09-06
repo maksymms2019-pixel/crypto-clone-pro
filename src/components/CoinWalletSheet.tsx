@@ -5,7 +5,9 @@ import { useAuth } from "@/lib/auth";
 import { COIN_LEVELS, levelProgress } from "@/lib/coinLevels";
 import { haptic } from "@/lib/telegram";
 import { toast } from "sonner";
-import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket, Search } from "lucide-react";
+import { Coins, Sparkles, Gift, Trophy, X, Copy, Check, Crown, Ticket, Zap, Plus } from "lucide-react";
+import { DailyChest, untilText } from "./DailyChest";
+import { LevelBadge } from "./LevelBadge";
 
 type Tab = "wallet" | "rating" | "raffles";
 
@@ -15,6 +17,19 @@ type CoinStats = {
   opt_in: boolean;
   rank: number | null;
   total: number;
+  streak?: number;
+  boost_until?: string | null;
+  chest_available?: boolean;
+  chest_next_at?: string | null;
+  is_admin?: boolean;
+};
+
+type PromoRow = {
+  code: string;
+  coins: number;
+  created_at: string;
+  redeemed_at: string | null;
+  redeemed_name: string | null;
 };
 
 type LeaderRow = {
@@ -33,16 +48,6 @@ type SnapshotRow = {
   participants: number;
   balance: number;
   rank: number;
-};
-
-type VerifyResp = {
-  ok: boolean;
-  error?: string;
-  code?: string;
-  display_name?: string;
-  balance?: number;
-  rank?: number;
-  snapshot?: { title: string; taken_at: string; balance: number; rank: number } | null;
 };
 
 // The managed types file is generated from the external DB and can't be edited,
@@ -84,6 +89,9 @@ export function CoinWalletSheet({
   const [shown, setShown] = useState(0);
   const [copied, setCopied] = useState(false);
   const [dragY, setDragY] = useState(0);
+  const [chestOpen, setChestOpen] = useState(false);
+  const [promo, setPromo] = useState("");
+  const [newCoins, setNewCoins] = useState("100");
   const drag = useRef<{ startY: number; active: boolean }>({ startY: 0, active: false });
 
   const stats = useQuery({
@@ -130,6 +138,66 @@ export function CoinWalletSheet({
       toast.success(value ? "Ти в рейтингу 🏆" : "Тебе приховано з рейтингу");
     },
     onError: () => toast.message("Не вдалось змінити налаштування"),
+  });
+
+  const isAdmin = stats.data?.is_admin === true;
+
+  const promoList = useQuery({
+    queryKey: ["promo-codes"],
+    queryFn: async () => {
+      const { data, error } = await sb.rpc<PromoRow[]>("list_promo_codes");
+      if (error) throw new Error(error.message);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: open && isAdmin && tab === "raffles",
+    staleTime: 30_000,
+  });
+
+  const redeem = useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await sb.rpc<{ ok: boolean; error?: string; coins?: number }>(
+        "redeem_promo_code",
+        { _code: code },
+      );
+      if (error) throw new Error(error.message);
+      return data ?? { ok: false };
+    },
+    onSuccess: (r) => {
+      if (r.ok) {
+        haptic("success");
+        setPromo("");
+        toast.success(`Промокод активовано: +${r.coins} монеток 🎉`);
+        qc.invalidateQueries({ queryKey: ["coin-stats"] });
+        qc.invalidateQueries({ queryKey: ["coin-leaderboard"] });
+      } else if (r.error === "already_used") {
+        toast.message("Цей код уже забрали 😔");
+      } else if (r.error === "not_found") {
+        toast.message("Такого коду не існує");
+      } else {
+        toast.message("Не вдалось активувати код");
+      }
+    },
+    onError: () => toast.message("Спробуй ще раз за мить"),
+  });
+
+  const createPromo = useMutation({
+    mutationFn: async (coins: number) => {
+      const { data, error } = await sb.rpc<{ ok: boolean; error?: string; code?: string }>(
+        "create_promo_code",
+        { _coins: coins },
+      );
+      if (error) throw new Error(error.message);
+      return data ?? { ok: false };
+    },
+    onSuccess: (r) => {
+      if (r.ok) {
+        toast.success(`Код створено: ${r.code}`);
+        qc.invalidateQueries({ queryKey: ["promo-codes"] });
+      } else {
+        toast.message("Не вдалось створити код");
+      }
+    },
+    onError: () => toast.message("Не вдалось створити код"),
   });
 
   // Count-up animation for the big number.
@@ -281,6 +349,47 @@ export function CoinWalletSheet({
         >
           {tab === "wallet" && (
             <>
+              {/* Daily chest */}
+              <button
+                onClick={() => { haptic("tap"); if (chestReady) setChestOpen(true); }}
+                disabled={!chestReady}
+                className="mb-3 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-transform active:scale-[.99] disabled:active:scale-100"
+                style={{
+                  borderColor: chestReady ? "rgba(240,192,78,.55)" : "var(--line)",
+                  background: chestReady ? "rgba(240,192,78,.10)" : "rgba(255,255,255,.02)",
+                }}
+              >
+                <span className={`text-2xl ${chestReady ? "chest-ready" : "opacity-60"}`}>🎁</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold">
+                    {chestReady ? "Щоденна скриня готова" : "Скриня вже відкрита"}
+                  </span>
+                  <span className="block text-[11px] text-[var(--text-muted)]">
+                    {chestReady
+                      ? "Монети, буст ×2 або золотий дощ"
+                      : `Наступна — через ${untilText(stats.data?.chest_next_at)}`}
+                    {streak > 0 ? ` · серія ${streak} дн.` : ""}
+                  </span>
+                </span>
+                {chestReady && (
+                  <span
+                    className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                    style={{ background: "linear-gradient(135deg,#FFEBA6,#EBB63B 55%,#C98A12)", color: "#1A0F00" }}
+                  >
+                    Відкрити
+                  </span>
+                )}
+              </button>
+
+              {boosted && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--cyan)]/40 bg-[var(--cyan)]/10 px-3 py-2">
+                  <Zap size={13} className="shrink-0 text-[var(--cyan)]" />
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Активний буст <span className="font-bold text-[var(--cyan)]">×2</span> — ще {untilText(stats.data?.boost_until)}
+                  </p>
+                </div>
+              )}
+
               {/* Badge + balance */}
               <div className="flex flex-col items-center pt-1 text-center">
                 <div className="relative">
@@ -289,10 +398,10 @@ export function CoinWalletSheet({
                     style={{ background: level.glow }}
                   />
                   <span
-                    className={`flex h-20 w-20 items-center justify-center rounded-full text-3xl ${level.id === "legend" ? "animate-pulse" : ""}`}
+                    className={`flex h-20 w-20 items-center justify-center rounded-full text-3xl ${level.aura}`}
                     style={{ background: level.gradient, color: level.onGradient, boxShadow: `0 0 30px ${level.glow}` }}
                   >
-                    <Coins size={34} />
+                    <Coins size={34} className="relative z-[2]" />
                   </span>
                 </div>
                 <div className="mt-3 display text-4xl font-bold tabular-nums" style={{ color: level.color }}>
@@ -345,10 +454,10 @@ export function CoinWalletSheet({
                       }}
                     >
                       <span
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${reached ? l.aura : ""}`}
                         style={{ background: l.gradient, color: l.onGradient }}
                       >
-                        {l.emoji}
+                        <span className="relative z-[2]">{l.emoji}</span>
                       </span>
                       <span className="flex-1 text-xs font-medium">{l.name}</span>
                       <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
@@ -447,6 +556,7 @@ export function CoinWalletSheet({
                         {row.display_name.slice(0, 1).toUpperCase()}
                       </span>
                     )}
+                    <LevelBadge balance={row.balance} />
                     <span className="min-w-0 flex-1 truncate text-xs font-medium">
                       {row.display_name}
                       {row.is_me && <span className="ml-1 text-[10px]" style={{ color: level.color }}>(ти)</span>}

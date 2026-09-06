@@ -250,10 +250,10 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
         'code', pc.code, 'coins', pc.coins, 'created_at', pc.created_at,
         'redeemed_at', pc.redeemed_at,
         'redeemed_name', coalesce(p.display_name, up.public_code))
+        ORDER BY pc.created_at DESC)
       FROM public.promo_codes pc
       LEFT JOIN public.profiles p ON p.id = pc.redeemed_by
-      LEFT JOIN public.user_points up ON up.user_id = pc.redeemed_by
-      ORDER BY pc.created_at DESC), '[]'::jsonb)
+      LEFT JOIN public.user_points up ON up.user_id = pc.redeemed_by), '[]'::jsonb)
   ELSE jsonb_build_object('ok', false, 'error', 'forbidden') END;
 $$;
 GRANT EXECUTE ON FUNCTION public.list_promo_codes() TO authenticated;

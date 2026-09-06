@@ -21,6 +21,8 @@ export type CoinLevel = {
   /** Text color that reads well on top of `gradient`. */
   onGradient: string;
   emoji: string;
+  /** CSS classes with the tier's signature animated aura. */
+  aura: string;
 };
 
 export const COIN_LEVELS: CoinLevel[] = [
@@ -35,6 +37,7 @@ export const COIN_LEVELS: CoinLevel[] = [
     gradient: "linear-gradient(135deg,#EBB582,#B06F3A 55%,#8A4F26)",
     onGradient: "#1F1206",
     emoji: "🥉",
+    aura: "lvl-badge lvl-bronze",
   },
   {
     id: "silver",
@@ -47,6 +50,7 @@ export const COIN_LEVELS: CoinLevel[] = [
     gradient: "linear-gradient(135deg,#F4F9FF,#A9BCD6 55%,#7E93AF)",
     onGradient: "#0E1620",
     emoji: "🥈",
+    aura: "lvl-badge lvl-sweep",
   },
   {
     id: "gold",
@@ -59,6 +63,7 @@ export const COIN_LEVELS: CoinLevel[] = [
     gradient: "linear-gradient(135deg,#FFEBA6,#EBB63B 55%,#C98A12)",
     onGradient: "#1A0F00",
     emoji: "🥇",
+    aura: "lvl-badge lvl-gold lvl-sweep",
   },
   {
     id: "diamond",
@@ -71,6 +76,7 @@ export const COIN_LEVELS: CoinLevel[] = [
     gradient: "linear-gradient(135deg,#DCF6FF,#7CD4F5 45%,#5B8DEF)",
     onGradient: "#06121F",
     emoji: "💎",
+    aura: "lvl-badge lvl-diamond",
   },
   {
     id: "legend",
@@ -83,6 +89,7 @@ export const COIN_LEVELS: CoinLevel[] = [
     gradient: "linear-gradient(135deg,#FFD98A,#FF7A3C 50%,#F43F5E)",
     onGradient: "#26100A",
     emoji: "🔥",
+    aura: "lvl-badge lvl-legend",
   },
 ];
 
