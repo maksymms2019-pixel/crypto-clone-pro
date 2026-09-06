@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { haptic } from "@/lib/telegram";
 import { levelFor } from "@/lib/coinLevels";
 import { CoinWalletSheet } from "./CoinWalletSheet";
+import { DailyChest } from "./DailyChest";
 
 type Pos = { top: number; left: number };
 
@@ -28,6 +29,11 @@ type CoinStats = {
   opt_in: boolean;
   rank: number | null;
   total: number;
+  streak?: number;
+  boost_until?: string | null;
+  chest_available?: boolean;
+  chest_next_at?: string | null;
+  is_admin?: boolean;
 };
 
 type CoinType = {
@@ -99,6 +105,7 @@ export function CoinReward() {
   const [coin, setCoin] = useState<CoinType>(COIN_TYPES[0]);
   const [claiming, setClaiming] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [chestOpen, setChestOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
   const prevLevel = useRef<string | null>(null);
 
@@ -174,8 +181,6 @@ export function CoinReward() {
       if (!res.ok) {
         if (res.error === "cooldown") {
           toast.message("Зачекай трохи перед наступною монеткою");
-        } else if (res.error === "daily_limit") {
-          toast.message("Денний ліміт монеток — повертайся завтра 🌙");
         } else if (res.error === "not_authenticated") {
           toast.message("Увійди, щоб збирати монетки");
         } else {
@@ -228,10 +233,23 @@ export function CoinReward() {
   const bal = stats.data?.balance ?? 0;
   const level = levelFor(bal);
   const Icon = coin.id === "diamond" ? Gem : Coins;
+  const boostUntil = stats.data?.boost_until ? new Date(stats.data.boost_until).getTime() : 0;
+  const boosted = boostUntil > Date.now();
+  const chestReady = stats.data?.chest_available === true;
 
   return (
     <>
-      <div className="pointer-events-none fixed right-3 z-50" style={{ top: "calc(var(--sa-top) + 8px)" }}>
+      <div className="pointer-events-none fixed right-3 z-50 flex items-center gap-1.5" style={{ top: "calc(var(--sa-top) + 8px)" }}>
+        {chestReady && (
+          <button
+            onClick={() => { haptic("tap"); setChestOpen(true); }}
+            aria-label="Відкрити щоденну скриню"
+            className="chest-ready pointer-events-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px]"
+            style={{ background: "linear-gradient(135deg,#FFEBA6,#EBB63B 55%,#C98A12)", boxShadow: "0 0 16px rgba(240,192,78,.7)" }}
+          >
+            🎁
+          </button>
+        )}
         <button
           onClick={() => { haptic("tap"); setWalletOpen(true); }}
           aria-label="Мої монетки"
@@ -244,8 +262,11 @@ export function CoinReward() {
         >
           <Coins size={13} />
           {bal}
+          {boosted && <span className="ml-0.5 text-[10px] font-bold text-[var(--cyan)]">×2</span>}
         </button>
       </div>
+
+      <DailyChest open={chestOpen} onClose={() => setChestOpen(false)} />
 
       <CoinWalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} balance={bal} />
 
