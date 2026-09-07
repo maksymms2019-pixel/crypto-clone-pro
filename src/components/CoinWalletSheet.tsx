@@ -233,6 +233,10 @@ export function CoinWalletSheet({
   const code = stats.data?.code ?? null;
   const myRank = stats.data?.rank ?? null;
   const optedIn = stats.data?.opt_in ?? true;
+  const streak = stats.data?.streak ?? 0;
+  const chestReady = stats.data?.chest_available === true;
+  const boostUntil = stats.data?.boost_until ? new Date(stats.data.boost_until).getTime() : 0;
+  const boosted = boostUntil > Date.now();
 
   const copyCode = async () => {
     if (!code) return;
@@ -572,6 +576,68 @@ export function CoinWalletSheet({
 
           {tab === "raffles" && (
             <>
+              {/* Promo code */}
+              <div className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[.02] p-3.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <Ticket size={12} /> Промокод
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={promo}
+                    onChange={(e) => setPromo(e.target.value.toUpperCase())}
+                    placeholder="CT-XXXX"
+                    aria-label="Промокод"
+                    className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-xs font-semibold tracking-widest outline-none placeholder:tracking-normal placeholder:text-[var(--text-muted)]"
+                  />
+                  <button
+                    onClick={() => { haptic("tap"); redeem.mutate(promo.trim()); }}
+                    disabled={promo.trim().length < 3 || redeem.isPending}
+                    className="shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-transform active:scale-95 disabled:opacity-50"
+                    style={{ background: level.gradient, color: level.onGradient }}
+                  >
+                    {redeem.isPending ? "…" : "Активувати"}
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-[var(--text-muted)]">
+                  Хто перший увів код — той і забрав монетки.
+                </p>
+              </div>
+
+              {isAdmin && (
+                <div className="mb-3 rounded-2xl border border-[var(--cyan)]/40 bg-[var(--cyan)]/[.07] p-3.5">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--cyan)]">
+                    <Zap size={12} /> Адмін · створити код
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      value={newCoins}
+                      onChange={(e) => setNewCoins(e.target.value.replace(/\D/g, ""))}
+                      inputMode="numeric"
+                      aria-label="Кількість монеток"
+                      className="w-24 shrink-0 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-xs font-semibold tabular-nums outline-none"
+                    />
+                    <button
+                      onClick={() => createPromo.mutate(Number(newCoins) || 0)}
+                      disabled={!Number(newCoins) || createPromo.isPending}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-[var(--cyan)]/50 px-3 py-2 text-xs font-bold text-[var(--cyan)] transition-transform active:scale-95 disabled:opacity-50"
+                    >
+                      <Plus size={13} /> Створити
+                    </button>
+                  </div>
+                  <div className="mt-2.5 space-y-1">
+                    {promoList.data?.map((p) => (
+                      <div key={p.code} className="flex items-center gap-2 rounded-lg bg-black/20 px-2.5 py-1.5">
+                        <span className="font-mono text-[11px] font-bold tracking-wider">{p.code}</span>
+                        <span className="text-[10px] tabular-nums text-[var(--text-muted)]">+{p.coins}</span>
+                        <span className="ml-auto truncate text-[10px] text-[var(--text-muted)]">
+                          {p.redeemed_at ? `забрав: ${p.redeemed_name ?? "—"}` : "вільний"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Coin ID card */}
               <div
                 className="rounded-2xl border p-4 text-center"
@@ -637,6 +703,7 @@ export function CoinWalletSheet({
           )}
         </div>
       </div>
+      <DailyChest open={chestOpen} onClose={() => setChestOpen(false)} />
     </div>
   );
 }
