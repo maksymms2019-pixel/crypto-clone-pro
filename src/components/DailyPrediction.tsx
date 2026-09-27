@@ -203,7 +203,7 @@ export function DailyPrediction() {
             <div className="mt-4 space-y-2">
               {(h?.items ?? []).length === 0 && <div className="text-center text-[12px] text-[var(--text-muted)]">Ще немає прогнозів</div>}
               {(h?.items ?? []).map((it, i) => {
-                const res = it.status === "settled" ? (it.result === "flat" || it.status === "cancelled" ? "=" : it.side === it.result ? `+${it.payout}` : `−${it.stake}`) : it.status === "cancelled" ? "повернено" : "очікує";
+                const res = it.status === "settled" ? (it.result === "flat" ? "=" : it.side === it.result ? `+${it.payout}` : `−${it.stake}`) : it.status === "cancelled" ? "повернено" : "очікує";
                 return (
                   <div key={i} className="flex items-center justify-between rounded-xl border border-[var(--line)] px-3 py-2 text-[12px]">
                     <span>{it.round_date} · {it.asset} · {it.side === "up" ? "▲" : "▼"} {it.stake}</span>
