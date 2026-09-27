@@ -357,3 +357,26 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   100% { transform: translateY(0); opacity: 1; }
 }
 .slot-in { animation: slotSpin .35s cubic-bezier(.2,.9,.3,1.4) both; }
+
+/* ---- Прогноз дня ---- */
+.pred-card { position: relative; overflow: hidden; border-color: var(--line-strong); }
+.pred-card::before { content: ""; position: absolute; inset: -40% -20% auto auto; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, var(--gold-glow), transparent 70%); opacity: .45; pointer-events: none; }
+.pred-round { border: 1px solid var(--line); border-radius: 18px; padding: 12px; background: linear-gradient(160deg, var(--surface-from), var(--surface-to)); }
+.pred-stake { flex: 1; border-radius: 12px; padding: 6px 0; font-size: 12px; font-weight: 600; border: 1px solid var(--line-strong); color: var(--text-muted); transition: all .15s; }
+.pred-stake--on { color: var(--bg); background: var(--grad-active); border-color: transparent; box-shadow: 0 0 14px var(--gold-glow); }
+.pred-btn { display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 14px; padding: 12px 0; font-weight: 800; letter-spacing: .05em; transition: transform .1s; }
+.pred-btn:active { transform: scale(.96); }
+.pred-btn:disabled { opacity: .5; }
+.pred-btn--up { color: var(--bg); background: var(--accent); box-shadow: 0 0 18px var(--accent-glow); }
+.pred-btn--down { color: var(--bg); background: var(--danger); box-shadow: 0 0 18px var(--danger-glow); }
+.pred-bar { height: 6px; border-radius: 99px; background: var(--danger); overflow: hidden; }
+.pred-bar > div { height: 100%; background: var(--accent); transition: width .5s; }
+.pred-mine { margin-top: 10px; border-radius: 12px; padding: 8px 10px; font-size: 12px; border: 1px dashed var(--line-strong); }
+.pred-result { margin-top: 10px; border-radius: 12px; padding: 10px; border: 1px solid var(--line-strong); animation: predPop .5s ease-out; }
+.pred-result--win { border-color: var(--accent); box-shadow: 0 0 24px var(--accent-glow); }
+.pred-result--lose { border-color: var(--danger); opacity: .9; }
+.pred-chip { display: flex; align-items: center; gap: 4px; border-radius: 99px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: var(--gold); border: 1px solid var(--line-strong); }
+.pred-toast { position: relative; margin-top: 10px; text-align: center; font-size: 12px; color: var(--gold-soft); }
+.pred-stat { display: flex; flex-direction: column; gap: 2px; border-radius: 14px; padding: 10px 4px; border: 1px solid var(--line); font-size: 11px; color: var(--text-muted); }
+.pred-stat b { font-size: 16px; color: var(--text); }
+@keyframes predPop { 0% { transform: scale(.9); opacity: 0 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }

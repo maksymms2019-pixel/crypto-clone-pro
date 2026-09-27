@@ -16,6 +16,7 @@ import { GainersLosers } from "@/components/GainersLosers";
 import { TrendingRail } from "@/components/TrendingRail";
 import { MarketMetrics } from "@/components/MarketMetrics";
 import { fetchMarketMetrics } from "@/lib/metrics";
+import { DailyPrediction } from "@/components/DailyPrediction";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -54,6 +55,8 @@ export default function Dashboard() {
           </div>
         }
       />
+
+      <DailyPrediction />
 
       {/* HERO — BTC card */}
       <section className="hero-ring relative mcard p-5">
