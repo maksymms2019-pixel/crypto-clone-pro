@@ -153,7 +153,7 @@ export function DailyPrediction() {
       qc.invalidateQueries({ queryKey: ["predictions"] });
       qc.invalidateQueries({ queryKey: ["coin-stats"] });
     },
-    onError: (e: Error) => { haptic("error" as never); setMsg(e.message); },
+    onError: (e: Error) => { haptic("error"); setMsg(e.message); },
   });
 
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 3500); return () => clearTimeout(t); }, [msg]);
