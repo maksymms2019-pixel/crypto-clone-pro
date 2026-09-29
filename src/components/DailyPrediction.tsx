@@ -233,7 +233,7 @@ export function DailyPrediction() {
           </div>
         </div>
       )}
-      {msg && <div className="pred-toast">{msg}</div>}
+      {msg && !openRound && <div className="pred-toast">{msg}</div>}
 
       {showHist && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--bg)]/80 backdrop-blur-sm" onClick={() => setShowHist(false)}>
