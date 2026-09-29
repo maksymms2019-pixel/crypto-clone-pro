@@ -11,7 +11,7 @@ const sb = supabase as unknown as {
 };
 
 type Round = {
-  id: string; asset: "BTC" | "GRAM"; round_date: string; open_price: number; close_price: number | null;
+  id: string; asset: string; name?: string | null; round_date: string; open_price: number; close_price: number | null;
   locks_at: string; settles_at: string; status: string; result: string | null;
   up: number; down: number; my: { side: string; stake: number; payout: number | null } | null;
 };
@@ -29,7 +29,7 @@ const ERR: Record<string, string> = {
 };
 
 const fmtP = (p: number | null | undefined, a: string) =>
-  p == null ? "—" : "$" + Number(p).toLocaleString("en-US", { maximumFractionDigits: a === "BTC" ? 0 : 4 });
+  p == null ? "—" : "$" + Number(p).toLocaleString("en-US", { maximumFractionDigits: Number(p) >= 1000 ? 0 : Number(p) >= 1 ? 3 : 5 });
 
 function useNow() {
   const [n, setN] = useState(Date.now());
@@ -54,7 +54,7 @@ function RoundCard({ r, now, onBet, busy }: { r: Round; now: number; onBet: (sid
   return (
     <div className="pred-round">
       <div className="flex items-center justify-between">
-        <div className="text-[13px] font-bold">{r.asset === "GRAM" ? "GRAM (TON)" : "Bitcoin"}</div>
+        <div className="text-[13px] font-bold">{r.name ?? (r.asset === "GRAM" ? "GRAM (TON)" : r.asset === "BTC" ? "Bitcoin" : r.asset)}</div>
         <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
           {settled ? "Результат" : locked ? `Результат через ${left(+new Date(r.settles_at) - now)}` : `Закриття через ${left(+new Date(r.locks_at) - now)}`}
         </div>
@@ -114,6 +114,17 @@ export function DailyPrediction() {
   const now = useNow();
   const [showHist, setShowHist] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const adm = useQuery({
+    queryKey: ["pred-admin", user?.id], enabled: !!user, staleTime: 600_000,
+    queryFn: async () => { const { data } = await sb.rpc("my_coin_stats"); return !!(data as any)?.is_admin; },
+  });
+  const isAdmin = !!adm.data;
+  const cancel = useMutation({
+    mutationFn: async (id: string) => { const { error } = await sb.rpc("admin_cancel_round", { _round_id: id }); if (error) throw new Error(error.message); },
+    onSuccess: () => { setMsg("Раунд скасовано, ставки повернено"); setOpenId(null); qc.invalidateQueries({ queryKey: ["predictions"] }); },
+    onError: (e: Error) => setMsg(e.message),
+  });
 
   const ov = useQuery({
     queryKey: ["predictions", user?.id],
@@ -159,14 +170,15 @@ export function DailyPrediction() {
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 3500); return () => clearTimeout(t); }, [msg]);
 
   const rounds = ov.data ?? [];
+  const openRound = rounds.find((r) => r.id === openId) ?? null;
   const h = hist.data;
 
   return (
-    <section className="pred-card mcard p-4">
+    <section className="pred-card mcard p-3">
       <div className="relative flex items-center justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--gold)]">🔮 Прогноз дня</div>
-          <div className="text-[12px] text-[var(--text-muted)]">Вгадай — отримай ×2 і квиток на розіграш</div>
+          <div className="text-[11px] text-[var(--text-muted)]">Вгадай — ×2 і квиток 🎟</div>
         </div>
         {user && (
           <button onClick={() => setShowHist(true)} className="pred-chip">
@@ -176,17 +188,52 @@ export function DailyPrediction() {
         )}
       </div>
 
-      <div className="relative mt-3 space-y-3">
-        {ov.isLoading && <div className="h-40 animate-pulse rounded-2xl bg-[var(--bg-elev)]" />}
+      <div className="relative mt-2 grid grid-cols-2 gap-2">
+        {ov.isLoading && <div className="col-span-2 h-14 animate-pulse rounded-xl bg-[var(--bg-elev)]" />}
         {!ov.isLoading && rounds.length === 0 && (
-          <div className="pred-round text-center text-[12px] text-[var(--text-muted)]">Новий раунд стартує щодня о 12:00 (Київ)</div>
+          <div className="col-span-2 text-center text-[11px] text-[var(--text-muted)]">Новий раунд стартує щодня о 12:00 (Київ)</div>
         )}
-        {rounds.map((r) => (
-          <RoundCard key={r.id} r={r} now={now} busy={bet.isPending}
-            onBet={(side, stake) => user ? bet.mutate({ id: r.id, side, stake }) : setMsg(ERR.not_authenticated)} />
-        ))}
+        {rounds.map((r) => {
+          const total = r.up + r.down;
+          const upPct = total ? Math.round((r.up / total) * 100) : 50;
+          const locked = r.status !== "open" || now >= +new Date(r.locks_at);
+          const settled = r.status === "settled";
+          const tag = settled ? (r.result === "up" ? "▲ UP" : r.result === "down" ? "▼ DOWN" : "=")
+            : r.my ? (r.my.side === "up" ? "▲ твій" : "▼ твій")
+            : locked ? left(+new Date(r.settles_at) - now) : left(+new Date(r.locks_at) - now);
+          return (
+            <button key={r.id} onClick={() => { haptic("tap"); setOpenId(r.id); }}
+              className="rounded-xl border border-[var(--line)] bg-[var(--bg)]/40 px-2.5 py-2 text-left">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[12px] font-bold">{r.asset}</span>
+                <span className="text-[10px] tabular-nums text-[var(--text-muted)]">{tag}</span>
+              </div>
+              <div className="text-[11px] tabular-nums text-[var(--gold)]">{fmtP(r.open_price, r.asset)}</div>
+              <div className="pred-bar mt-1"><div style={{ width: `${upPct}%` }} /></div>
+            </button>
+          );
+        })}
       </div>
-      {msg && <div className="pred-toast">{msg}</div>}
+      {openRound && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--bg)]/80 backdrop-blur-sm" onClick={() => setOpenId(null)}>
+          <div className="w-full max-w-md max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-[var(--line-strong)] bg-[var(--bg-elev)] p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wider text-[var(--gold)]">🔮 Прогноз дня</div>
+              <button onClick={() => setOpenId(null)} aria-label="Закрити"><X className="h-5 w-5" /></button>
+            </div>
+            <RoundCard r={openRound} now={now} busy={bet.isPending}
+              onBet={(side, stake) => user ? bet.mutate({ id: openRound.id, side, stake }) : setMsg(ERR.not_authenticated)} />
+            {isAdmin && openRound.status === "open" && (
+              <button onClick={() => { if (confirm("Скасувати раунд і повернути ставки?")) cancel.mutate(openRound.id); }}
+                className="mt-3 w-full rounded-xl border border-[var(--danger)] py-2 text-[12px] text-[var(--danger)]">
+                Адмін: скасувати раунд і повернути ставки
+              </button>
+            )}
+            {msg && <div className="pred-toast">{msg}</div>}
+          </div>
+        </div>
+      )}
+      {msg && !openRound && <div className="pred-toast">{msg}</div>}
 
       {showHist && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--bg)]/80 backdrop-blur-sm" onClick={() => setShowHist(false)}>

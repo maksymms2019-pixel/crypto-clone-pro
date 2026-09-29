@@ -11,3 +11,4 @@
 
 - Bot integration goes only through service_role `bot_*` RPCs keyed by `user_points.telegram_id` — keeps balance changes logged in `point_events`.
 - "Прогноз дня" rounds are opened/settled server-side by `predictions-cron` (pg_cron every 5 min) — prices never come from the client.
+- `markets-proxy` overlays live OKX/Binance prices onto cached CoinGecko rows when CoinGecko fails — CoinGecko free tier blocks shared servers; optional `COINGECKO_API_KEY`.
