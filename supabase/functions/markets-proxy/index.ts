@@ -10,7 +10,71 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const CG_KEY = Deno.env.get("COINGECKO_API_KEY") ?? "";
 const CG = "https://api.coingecko.com/api/v3";
+// Attach the demo key (if configured) to every CoinGecko request.
+const _fetch = globalThis.fetch;
+function fetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
+  const url = String(input);
+  if (CG_KEY && url.startsWith(CG)) {
+    init = { ...init, headers: { ...(init.headers ?? {}), "x-cg-demo-api-key": CG_KEY } };
+  }
+  return _fetch(url, init);
+}
+
+type Tick = { last: number; open: number };
+// Live spot prices from exchanges (not blocked like CoinGecko free tier).
+async function exchangeTickers(): Promise<Map<string, Tick>> {
+  const m = new Map<string, Tick>();
+  try {
+    const r = await _fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { signal: AbortSignal.timeout(7000) });
+    const j = await r.json();
+    for (const t of j?.data ?? []) {
+      if (!String(t.instId).endsWith("-USDT")) continue;
+      const last = Number(t.last), open = Number(t.sodUtc0) || Number(t.open24h);
+      if (last > 0 && open > 0) m.set(String(t.instId).slice(0, -5).toUpperCase(), { last, open: Number(t.open24h) || open });
+    }
+  } catch (_) { /* next */ }
+  try {
+    const r = await _fetch("https://api.binance.com/api/v3/ticker/24hr", { signal: AbortSignal.timeout(7000) });
+    const arr = await r.json();
+    if (Array.isArray(arr)) for (const t of arr) {
+      const s = String(t.symbol);
+      if (!s.endsWith("USDT")) continue;
+      const k = s.slice(0, -4);
+      if (m.has(k)) continue;
+      const last = Number(t.lastPrice), open = Number(t.openPrice);
+      if (last > 0 && open > 0) m.set(k, { last, open });
+    }
+  } catch (_) { /* ignore */ }
+  m.set("USDT", { last: 1, open: 1 });
+  if (m.has("TON")) m.set("TON", m.get("TON")!);
+  return m;
+}
+
+const SYMBOL_ALIAS: Record<string, string> = { toncoin: "TON", "the-open-network": "TON" };
+
+// Overlay live exchange prices onto cached CoinGecko rows.
+// deno-lint-ignore no-explicit-any
+function overlay(rows: any[], t: Map<string, Tick>): number {
+  let hit = 0;
+  for (const c of rows ?? []) {
+    const sym = SYMBOL_ALIAS[c.id] ?? String(c.symbol ?? "").toUpperCase();
+    const k = t.get(sym) ?? (sym === "TON" ? t.get("GRAM") : undefined);
+    if (!k || !c.current_price) continue;
+    // guard against symbol collisions: ignore if >60% away from last known price
+    const ratio = k.last / c.current_price;
+    if (ratio > 1.6 || ratio < 0.4) continue;
+    if (c.market_cap) c.market_cap = c.market_cap * ratio;
+    c.current_price = k.last;
+    const pct = (k.last / k.open - 1) * 100;
+    c.price_change_percentage_24h = pct;
+    if ("price_change_percentage_24h_in_currency" in c) c.price_change_percentage_24h_in_currency = pct;
+    c.last_updated = new Date().toISOString();
+    hit++;
+  }
+  return hit;
+}
 
 type Op =
   | { op: "markets"; perPage?: number; page?: number; ids?: string[]; sparkline?: boolean; category?: string }
@@ -262,6 +326,29 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e) {
+      // Upstream failed: refresh cached rows with live exchange prices.
+      if (cached && (body.op === "markets" || body.op === "gainers_losers")) {
+        try {
+          const t = await exchangeTickers();
+          // deno-lint-ignore no-explicit-any
+          const p: any = cached.payload;
+          let hit = 0;
+          if (body.op === "markets") hit = overlay(p, t);
+          else {
+            const all = [...(p.gainers ?? []), ...(p.losers ?? [])];
+            hit = overlay(all, t);
+            const sorted = all.sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
+            p.gainers = sorted.slice(0, 5); p.losers = sorted.slice(-5).reverse();
+          }
+          if (hit > 0) {
+            const now = new Date().toISOString();
+            await supabase.from("metrics_cache").upsert({ key, payload: p, expires_at: new Date(Date.now() + ttl * 1000).toISOString(), updated_at: now });
+            return new Response(JSON.stringify({ data: p, cached: false, source: "exchange", updated_at: now }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (err) { console.error("[markets-proxy] overlay", err); }
+      }
       // If upstream fails but we have stale cache — serve stale
       if (cached) {
         return new Response(JSON.stringify({ data: cached.payload, cached: true, stale: true }), {
