@@ -349,6 +349,40 @@ Deno.serve(async (req) => {
           }
         } catch (err) { console.error("[markets-proxy] overlay", err); }
       }
+      if (body.op === "global") {
+        try {
+          const r = await _fetch("https://api.coinpaprika.com/v1/global", { signal: AbortSignal.timeout(7000) });
+          const g = await r.json();
+          if (g?.market_cap_usd) {
+            // deno-lint-ignore no-explicit-any
+            const prev: any = cached?.payload ?? {};
+            const p = {
+              total_market_cap_usd: g.market_cap_usd,
+              total_volume_usd: g.volume_24h_usd,
+              market_cap_change_percentage_24h_usd: g.market_cap_change_24h,
+              btc_dominance: g.bitcoin_dominance_percentage,
+              eth_dominance: prev.eth_dominance ?? 0,
+              active_cryptocurrencies: g.cryptocurrencies_number ?? prev.active_cryptocurrencies ?? 0,
+            };
+            const now = new Date().toISOString();
+            await supabase.from("metrics_cache").upsert({ key, payload: p, expires_at: new Date(Date.now() + ttl * 1000).toISOString(), updated_at: now });
+            return new Response(JSON.stringify({ data: p, cached: false, source: "paprika", updated_at: now }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (err) { console.error("[markets-proxy] paprika", err); }
+      }
+      if (cached && body.op === "coin") {
+        try {
+          // deno-lint-ignore no-explicit-any
+          const p: any = cached.payload;
+          if (overlay([p], await exchangeTickers()) > 0) {
+            return new Response(JSON.stringify({ data: p, cached: false, source: "exchange" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (_) { /* stale */ }
+      }
       // If upstream fails but we have stale cache — serve stale
       if (cached) {
         return new Response(JSON.stringify({ data: cached.payload, cached: true, stale: true }), {
